@@ -9,6 +9,7 @@ name: Deploy 3ac38d3f-2429-432d-88da-d4bad255122f.sh
 env:
   AWS_REGION: us-west-1 # set this to your preferred AWS region, e.g. us-west-1
   ECR_REPOSITORY: frontend
+  SNS_TOPIC_ARN: arn:aws:sns:us-west-1:337663073595:frontend-cicd-notification
 
 jobs:
   deploy:
@@ -56,5 +57,12 @@ jobs:
         env:
           WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL  }}
           data: "{ 'myField': 'myFieldValue'}"
+      - name: Send SNS Notification (Success)
+        if: ${{ steps.deploy-webhook.outputs.status == 'success' }}
+        run: aws sns publish --topic-arn $SNS_TOPIC_ARN --message "Deployment to ECR and webhook execution were successful."
+
+      - name: Send SNS Notification (Failure)
+        if: ${{ steps.deploy-webhook.outputs.status != 'success' }}
+        run: aws sns publish --topic-arn $SNS_TOPIC_ARN --message "Deployment to ECR was successful, but webhook execution failed."
           
         
