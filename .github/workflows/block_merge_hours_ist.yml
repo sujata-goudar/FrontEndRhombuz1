@@ -1,0 +1,42 @@
+name: Block Merge During Specific Hours (IST)
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  schedule:
+    - cron: '*/30 * * * *'  # Check every 30 minutes
+
+jobs:
+  block-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check Current Time (IST)
+        id: check-time
+        run: |
+          current_time=$(date +"%H:%M")
+          # Assuming IST timezone
+          ist_start_time="16:00"
+          ist_end_time="18:00"
+          if [[ "$current_time" -ge "$ist_start_time" && "$current_time" -le "$ist_end_time" ]]; then
+            echo "::set-output name=blocked::true"
+          else
+            echo "::set-output name=blocked::false"
+          fi
+      - name: Set Status Check
+        if: steps.check-time.outputs.blocked == 'true'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              check_run_id: context.runId,
+              name: 'Merge Blocked (IST)',
+              status: 'pending',
+              conclusion: 'pending',
+              output: {
+                title: 'Merge is currently blocked (IST)',
+                summary: 'Merging is not allowed between 4 PM and 6 PM IST.'
+              }
+            })
